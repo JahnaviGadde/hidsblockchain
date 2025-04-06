@@ -1,15 +1,15 @@
 const hre = require("hardhat");
 
 async function main() {
-  // Compile the contract
-  const Logger = await hre.ethers.getContractFactory("Logger");
-  const logger = await Logger.deploy();
+    const LogStorage = await hre.ethers.getContractFactory("LogStorage");
+    const logStorage = await LogStorage.deploy();
 
-  await logger.deployed();
-  console.log(`Logger deployed to: ${logger.address}`);
+    await logStorage.waitForDeployment();
+
+    console.log("Contract deployed at:", await logStorage.getAddress());
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exit(1);
+    console.error(error);
+    process.exitCode = 1;
 });
