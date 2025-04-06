@@ -61,7 +61,7 @@ function runMLModel(alerts, callback) {
   const alertsFile = 'alerts.json';
   fs.writeFileSync(alertsFile, JSON.stringify(alerts));
   
-  const mlProcess = spawn('python', ['ml_model.py', alertsFile]);
+  const mlProcess = spawn('py', ['-3.10', 'app.py', alertsFile]);
   
   let mlOutput = "";
   mlProcess.stdout.on('data', (data) => {
