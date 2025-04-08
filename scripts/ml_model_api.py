@@ -1,5 +1,6 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 import json
-import sys
 import numpy as np
 import pandas as pd
 import joblib
@@ -13,6 +14,9 @@ ocsvm = joblib.load('ocsvm.pkl')
 xgb_meta = joblib.load('xgb_meta.pkl')
 autoencoder = tf.keras.models.load_model('autoencoder.h5')
 
+# Initialize FastAPI app
+app = FastAPI()
+
 # Features used by ML models
 features = [
     'flow_duration', 'flow_bytes/s', 'flow_packets/s', 'packet_length_mean',
@@ -21,19 +25,17 @@ features = [
     'fwd_init_win_bytes', 'idle_mean', 'active_max', 'total_tcp_flow_time'
 ]
 
-def analyze_alerts(alert_data):
+class AlertData(BaseModel):
+    alerts: list[dict]
+
+@app.post("/analyze_alerts")
+def analyze_alerts(alert_data: AlertData):
     """
     Analyze alert data using multiple ML models.
-    
-    Args:
-        alert_data (list): A list of dictionaries containing alert data.
-    
-    Returns:
-        list: A list of dictionaries with predictions from each model.
     """
     try:
 
-        num_samples = num_samples = len(alert_data)
+        num_samples = num_samples = len(alert_data.alerts)
         alert_stat = []
         for _ in range(num_samples):
             alert = {
@@ -54,7 +56,7 @@ def analyze_alerts(alert_data):
                 "total_tcp_flow_time": np.random.uniform(1, 500)
             }
             alert_stat.append(alert)
-        # Convert input alert data to DataFrame and select required features
+
         df_alerts = pd.DataFrame(alert_stat)
         df_alerts = df_alerts[features].replace([np.inf, -np.inf], np.nan).fillna(0)
         
@@ -90,45 +92,4 @@ def analyze_alerts(alert_data):
 
         return results
     except Exception as e:
-        return {"error": str(e), "trace": traceback.format_exc()}
-
-def load_alerts_from_file(file_path):
-    """
-    Load alert data from a JSON file.
-    """
-    with open(file_path, "r") as f:
-        return json.load(f)
-
-if __name__ == "__main__":
-    # If a file is provided as an argument, load alerts from the file.
-    if len(sys.argv) > 1:
-        alerts_file = sys.argv[1]
-        try:
-            alert_data = load_alerts_from_file(alerts_file)
-        except Exception as e:
-            print(json.dumps({"error": f"Failed to load alerts from file: {str(e)}"}))
-            sys.exit(1)
-    else:
-        alert_data = [
-            {
-                "flow_duration": 10,
-                "flow_bytes/s": 500,
-                "flow_packets/s": 20,
-                "packet_length_mean": 150,
-                "packet_length_std": 15,
-                "subflow_fwd_packets": 5,
-                "subflow_bwd_packets": 3,
-                "flow_iat_mean": 0.1,
-                "flow_iat_max": 0.3,
-                "syn_flag_count": 2,
-                "ack_flag_count": 8,
-                "fwd_init_win_bytes": 1000,
-                "idle_mean": 0.5,
-                "active_max": 10,
-                "total_tcp_flow_time": 30
-            }
-        ]
-    
-    # Run analysis
-    results = analyze_alerts(alert_data)
-    print(json.dumps(results, indent=2))
+        raise HTTPException(status_code=500, detail={"error": str(e), "trace": traceback.format_exc()})
